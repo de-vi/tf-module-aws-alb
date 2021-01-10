@@ -21,7 +21,7 @@ resource "aws_alb_target_group" "target_group" {
   }
 
   depends_on = [
-    aws_lb_listner.listener
+    aws_lb_listener.listener
   ]
   dynamic "health_check" {
     for_each = var.target_group_health_checks
