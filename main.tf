@@ -20,6 +20,9 @@ resource "aws_alb_target_group" "target_group" {
     create_before_destroy = true
   }
 
+  depends_on = [
+    aws_lb_listner.listener
+  ]
   dynamic "health_check" {
     for_each = var.target_group_health_checks
     iterator = target_group_health_checks
