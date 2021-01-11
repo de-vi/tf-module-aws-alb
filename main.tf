@@ -1,3 +1,4 @@
+#tfsec:ignore:AWS005
 resource "aws_alb" "alb" {
   name                             = var.name
   subnets                          = flatten(var.subnet_ids)
@@ -5,6 +6,11 @@ resource "aws_alb" "alb" {
   security_groups                  = var.sg_ids
   idle_timeout                     = 10
   tags                             = var.tags
+  access_logs {
+    bucket  = var.access_log_bucket
+    prefix  = "${var.name}-alb"
+    enabled = true
+  }
 }
 
 resource "aws_alb_target_group" "target_group" {
@@ -43,7 +49,8 @@ resource "aws_lb_listener" "listener" {
   load_balancer_arn = aws_alb.alb.arn
   certificate_arn   = var.listeners[count.index]["ssl_cert_arn"]
   port              = var.listeners[count.index]["port"]
-  protocol          = var.listeners[count.index]["protocol"]
+  #checkov:skip=CKV_AWS_2:Ignore HTTPS protocol check
+  protocol = var.listeners[count.index]["protocol"]
 
   default_action {
     type = "fixed-response"

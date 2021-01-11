@@ -12,6 +12,7 @@ variable "listeners_count" {
 }
 
 variable "name" {}
+variable "access_log_bucket" {}
 
 variable "subnet_ids" {
   description = "A list of subnet ids"
@@ -20,7 +21,7 @@ variable "subnet_ids" {
 
 variable "tags" {
   description = "A list of tags"
-  type        = (map(string))
+  type        = map(string)
   default     = {}
 }
 
