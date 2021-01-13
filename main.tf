@@ -26,9 +26,6 @@ resource "aws_alb_target_group" "target_group" {
     create_before_destroy = true
   }
 
-  depends_on = [
-    aws_lb_listener.listener
-  ]
   dynamic "health_check" {
     for_each = var.target_group_health_checks
     iterator = target_group_health_checks
@@ -53,33 +50,28 @@ resource "aws_lb_listener" "listener" {
   protocol = var.listeners[count.index]["protocol"]
 
   default_action {
-    type = "fixed-response"
-
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "Not found."
-      status_code  = "404"
-    }
+    target_group_arn = aws_alb_target_group.target_group[*].arn
+    type             = "forward"
   }
 }
 
-resource "aws_lb_listener_rule" "listener_rule" {
-  count        = length(aws_lb_listener.listener[*].arn)
-  listener_arn = aws_lb_listener.listener[count.index].arn
-  priority     = 10
-
-  dynamic "action" {
-    for_each = aws_alb_target_group.target_group[*].arn
-    iterator = arn
-    content {
-      type             = "forward"
-      target_group_arn = arn.value
-    }
-  }
-
-  condition {
-    path_pattern {
-      values = ["/*"]
-    }
-  }
-}
+#resource "aws_lb_listener_rule" "listener_rule" {
+#  count        = length(aws_lb_listener.listener[*].arn)
+#  listener_arn = aws_lb_listener.listener[count.index].arn
+#  priority     = 10
+#
+#  dynamic "action" {
+#    for_each = aws_alb_target_group.target_group[*].arn
+#    iterator = arn
+#    content {
+#      type             = "forward"
+#      target_group_arn = arn.value
+#    }
+#  }
+#
+#  condition {
+#    path_pattern {
+#      values = ["/*"]
+#    }
+#  }
+#}
