@@ -14,13 +14,12 @@ resource "aws_alb" "alb" {
 }
 
 resource "aws_alb_target_group" "target_group" {
-  count       = length(var.target_groups)
-  name        = lookup(var.target_groups[count.index], "name")
-  port        = lookup(var.target_groups[count.index], "port")
-  protocol    = lookup(var.target_groups[count.index], "protocol")
-  target_type = lookup(var.target_groups[count.index], "target_type")
-  vpc_id      = var.vpc_id
-  tags        = var.tags
+  count    = length(var.target_groups)
+  name     = var.target_groups[count.index]["name"]
+  port     = var.target_groups[count.index]["port"]
+  protocol = var.target_groups[count.index]["protocol"]
+  vpc_id   = var.vpc_id
+  tags     = var.tags
 
   lifecycle {
     create_before_destroy = true
@@ -41,37 +40,54 @@ resource "aws_alb_target_group" "target_group" {
   }
 }
 
-resource "aws_lb_listener" "listener" {
-  count             = var.listeners_count
+resource "aws_lb_listener" "http_listener" {
   load_balancer_arn = aws_alb.alb.arn
-  certificate_arn   = var.listeners[count.index]["ssl_cert_arn"]
-  port              = var.listeners[count.index]["port"]
+  port              = "80"
   #checkov:skip=CKV_AWS_2:Ignore HTTPS protocol check
-  protocol = var.listeners[count.index]["protocol"]
+  protocol = "HTTP"
 
   default_action {
-    target_group_arn = aws_alb_target_group.target_group[*].arn
-    type             = "forward"
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
 
-#resource "aws_lb_listener_rule" "listener_rule" {
-#  count        = length(aws_lb_listener.listener[*].arn)
-#  listener_arn = aws_lb_listener.listener[count.index].arn
-#  priority     = 10
-#
-#  dynamic "action" {
-#    for_each = aws_alb_target_group.target_group[*].arn
-#    iterator = arn
-#    content {
-#      type             = "forward"
-#      target_group_arn = arn.value
-#    }
-#  }
-#
-#  condition {
-#    path_pattern {
-#      values = ["/*"]
-#    }
-#  }
-#}
+resource "aws_lb_listener" "https_listener" {
+  load_balancer_arn = aws_alb.alb.arn
+  port              = "443"
+  #checkov:skip=CKV_AWS_2:Ignore HTTPS protocol check
+  protocol        = "HTTPS"
+  certificate_arn = var.ssl_cert_arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_alb_target_group.target_group[0].arn
+  }
+}
+
+locals {
+  additional_target_groups = slice(aws_alb_target_group.target_group[*].arn, 1, length(aws_alb_target_group.target_group[*].arn))
+}
+
+resource "aws_lb_listener_rule" "listener_rule" {
+  count        = length(local.additional_target_groups) > 0 ? 1 : 0
+  listener_arn = aws_lb_listener.https_listener.arn
+
+  dynamic "action" {
+    for_each = local.additional_target_groups
+    iterator = arn
+    content {
+      type             = "forward"
+      target_group_arn = arn.value
+    }
+  }
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}

@@ -1,18 +1,7 @@
 variable "sg_ids" {}
-variable "listeners" {
-  description = "A list of ALB listeners"
-  type        = list(map(string))
-  default     = []
-}
-
-variable "listeners_count" {
-  description = "Number of listeners in the listeners variable"
-  type        = number
-  default     = 0
-}
-
 variable "name" {}
 variable "access_log_bucket" {}
+variable "ssl_cert_arn" {}
 
 variable "subnet_ids" {
   description = "A list of subnet ids"
@@ -29,12 +18,10 @@ variable "target_groups" {
   description = "A list of target group maps"
   type        = list(map(string))
   default     = []
-}
-
-variable "target_groups_count" {
-  description = "Number of target groups"
-  type        = number
-  default     = 0
+  validation {
+    condition     = length(var.target_groups) > 0
+    error_message = "At least one target_group must be provided."
+  }
 }
 
 variable "target_group_health_checks" {
